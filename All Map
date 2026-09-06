@@ -1,0 +1,311 @@
+-- ========================================================
+-- UNIVERSAL HUB SCRIPT (ภาษาไทย)
+-- ========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ตัวแปรสถานะฟังก์ชัน
+local State = {
+    Fly = false,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    Noclip = false,
+    Invisibility = false,
+    GodMode = false,
+    ESP = false,
+    FPSBoost = false
+}
+
+-- 1. สร้าง GUI หลัก
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UniversalHubGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ปุ่มเปิด-ปิดเมนูหลัก (Toggle Menu Button)
+local ToggleMenuBtn = Instance.new("TextButton")
+ToggleMenuBtn.Size = UDim2.new(0, 100, 0, 40)
+ToggleMenuBtn.Position = UDim2.new(0, 10, 0.4, 0)
+ToggleMenuBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+ToggleMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleMenuBtn.Text = "เปิด/ปิด เมนู"
+ToggleMenuBtn.Parent = ScreenGui
+
+-- หน้าต่างเมนูหลัก
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Text = "ระบบควบคุมหลัก (Universal Hub)"
+Title.TextSize = 16
+Title.Parent = MainFrame
+
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Size = UDim2.new(1, -20, 1, -50)
+ScrollFrame.Position = UDim2.new(0, 10, 0, 45)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
+ScrollFrame.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.Parent = ScrollFrame
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 5)
+
+ToggleMenuBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- ฟังก์ชันสร้างปุ่มในเมนู
+local function CreateButton(text, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 35)
+    Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Text = text
+    Btn.Parent = ScrollFrame
+    Btn.MouseButton1Click:Connect(function()
+        callback(Btn)
+    end)
+    return Btn
+end
+
+-- 2. ระบบบิน (Fly) + ปุ่มเปิด-ปิดบนหน้าจอ
+local FlyBtnOnScreen = Instance.new("TextButton")
+FlyBtnOnScreen.Size = UDim2.new(0, 80, 0, 40)
+FlyBtnOnScreen.Position = UDim2.new(0, 10, 0.5, 0)
+FlyBtnOnScreen.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+FlyBtnOnScreen.TextColor3 = Color3.fromRGB(255, 255, 255)
+FlyBtnOnScreen.Text = "บิน: ปิด"
+FlyBtnOnScreen.Visible = false
+FlyBtnOnScreen.Parent = ScreenGui
+
+local BodyVelocity, BodyGyro
+local function ToggleFly()
+    State.Fly = not State.Fly
+    FlyBtnOnScreen.Text = State.Fly and "บิน: เปิด" or "บิน: ปิด"
+    FlyBtnOnScreen.BackgroundColor3 = State.Fly and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    
+    local Character = LocalPlayer.Character
+    if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    if State.Fly then
+        BodyVelocity = Instance.new("BodyVelocity")
+        BodyGyro = Instance.new("BodyGyro")
+        
+        BodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+        BodyVelocity.Parent = Character.HumanoidRootPart
+        
+        BodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+        BodyGyro.Parent = Character.HumanoidRootPart
+        
+        task.spawn(function()
+            while State.Fly do
+                RunService.RenderStepped:Wait()
+                local Camera = workspace.CurrentCamera
+                BodyGyro.CFrame = Camera.CFrame
+                BodyVelocity.Velocity = Camera.CFrame.LookVector * 50
+            end
+        end)
+    else
+        if BodyVelocity then BodyVelocity:Destroy() end
+        if BodyGyro then BodyGyro:Destroy() end
+    end
+end
+
+FlyBtnOnScreen.MouseButton1Click:Connect(ToggleFly)
+
+CreateButton("🐲 ระบบบิน (แสดงปุ่มบิน)", function(btn)
+    FlyBtnOnScreen.Visible = not FlyBtnOnScreen.Visible
+end)
+
+-- 3. วิ่งไว (Speed)
+CreateButton("🐆 วิ่งไว (เปิด/ปิด)", function(btn)
+    State.WalkSpeed = (State.WalkSpeed == 16) and 100 or 16
+    btn.Text = "🐆 วิ่งไว: " .. (State.WalkSpeed == 16 and "ปกติ" or "ทำงาน")
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = State.WalkSpeed
+    end
+end)
+
+-- 4. กระโดดสูง (Jump High)
+CreateButton("🐰 กระโดดสูง (เปิด/ปิด)", function(btn)
+    State.JumpPower = (State.JumpPower == 50) and 200 or 50
+    btn.Text = "🐰 กระโดดสูง: " .. (State.JumpPower == 50 and "ปกติ" or "ทำงาน")
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = State.JumpPower
+    end
+end)
+
+-- 5. เดินทะลุ (NoClip)
+CreateButton("👻 เดินทะลุ (เปิด/ปิด)", function(btn)
+    State.Noclip = not State.Noclip
+    btn.Text = "👻 เดินทะลุ: " .. (State.Noclip and "เปิด" or "ปิด")
+end)
+
+RunService.Stepped:Connect(function()
+    if State.Noclip and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- 6. ล่องหน (Invisibility)
+CreateButton("👻 ล่องหน (เปิด/ปิด)", function(btn)
+    State.Invisibility = not State.Invisibility
+    btn.Text = "👻 ล่องหน: " .. (State.Invisibility and "เปิด" or "ปิด")
+    if LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("Decal") then
+                part.Transparency = State.Invisibility and 1 or 0
+            end
+        end
+    end
+end)
+
+-- 7. อมตะ (God Mode - Client Side)
+CreateButton("🛡️ อมตะ (God Mode)", function(btn)
+    State.GodMode = not State.GodMode
+    btn.Text = "🛡️ อมตะ: " .. (State.GodMode and "เปิด" or "ปิด")
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        if State.GodMode then
+            LocalPlayer.Character.Humanoid.MaxHealth = math.huge
+            LocalPlayer.Character.Humanoid.Health = math.huge
+        else
+            LocalPlayer.Character.Humanoid.MaxHealth = 100
+            LocalPlayer.Character.Humanoid.Health = 100
+        end
+    end
+end)
+
+-- 8. เสกของ (Conjuring Items GUI)
+local ConjureFrame = Instance.new("Frame")
+ConjureFrame.Size = UDim2.new(0, 150, 0, 150)
+ConjureFrame.Position = UDim2.new(0, 120, 0.4, 0)
+ConjureFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ConjureFrame.Visible = false
+ConjureFrame.Parent = ScreenGui
+
+local ConjureList = Instance.new("UIListLayout")
+ConjureList.Parent = ConjureFrame
+
+local function CreateConjureItem(name, toolClass)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 30)
+    Btn.Text = "เสก " .. name
+    Btn.Parent = ConjureFrame
+    Btn.MouseButton1Click:Connect(function()
+        local Tool = Instance.new("Tool")
+        Tool.Name = name
+        local Handle = Instance.new("Part")
+        Handle.Name = "Handle"
+        Handle.Size = Vector3.new(1, 1, 1)
+        Handle.Parent = Tool
+        Tool.Parent = LocalPlayer.Backpack
+    end)
+end
+
+CreateConjureItem("กล้วย", "Banana")
+CreateConjureItem("แอปเปิ้ล", "Apple")
+CreateConjureItem("ปืนเลเซอร์", "LaserGun")
+
+CreateButton("🍌 เมนูเสกของ (แสดง/ซ่อน)", function(btn)
+    ConjureFrame.Visible = not ConjureFrame.Visible
+end)
+
+-- 9. ESP (มองเห็นผู้เล่นผ่านกำแพง)
+CreateButton("👁️ ESP มองทะลุ (เปิด/ปิด)", function(btn)
+    State.ESP = not State.ESP
+    btn.Text = "👁️ ESP: " .. (State.ESP and "เปิด" or "ปิด")
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            if State.ESP then
+                if not player.Character:FindFirstChild("Highlight") then
+                    local Highlight = Instance.new("Highlight")
+                    Highlight.Name = "Highlight"
+                    Highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    Highlight.Parent = player.Character
+                end
+            else
+                if player.Character:FindFirstChild("Highlight") then
+                    player.Character.Highlight:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+-- 10. FPS Boost (ลดการกระตุก)
+CreateButton("⚡ FPS Boost (ลดความแล็ค)", function(btn)
+    State.FPSBoost = not State.FPSBoost
+    btn.Text = "⚡ FPS Boost: " .. (State.FPSBoost and "เปิด" or "ปิด")
+    
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.Material = Enum.Material.SmoothPlastic
+            v.CastShadow = not State.FPSBoost
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v.Transparency = State.FPSBoost and 1 or 0
+        end
+    end
+end)
+
+-- 11. แปลงร่าง (Transform GUI)
+local TransformFrame = Instance.new("Frame")
+TransformFrame.Size = UDim2.new(0, 150, 0, 200)
+TransformFrame.Position = UDim2.new(0, 280, 0.4, 0)
+TransformFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+TransformFrame.Visible = false
+TransformFrame.Parent = ScreenGui
+
+local TransformList = Instance.new("UIListLayout")
+TransformList.Parent = TransformFrame
+
+local TransformTitle = Instance.new("TextLabel")
+TransformTitle.Size = UDim2.new(1, 0, 0, 25)
+TransformTitle.Text = "เลือกตัวละคร"
+TransformTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+TransformTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TransformTitle.Parent = TransformFrame
+
+local characters = {"โกโจ", "โดเรม่อน", "สุคุนะ", "โนบิตะ", "Noob"}
+
+for _, charName in ipairs(characters) do
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 30)
+    Btn.Text = charName
+    Btn.Parent = TransformFrame
+    Btn.MouseButton1Click:Connect(function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            -- เปลี่ยนแปลงขนาดหรือองค์ประกอบจำลองภาพร่าง
+            LocalPlayer.Character.Name = charName
+            print("แปลงร่างเป็น: " .. charName)
+        end
+    end)
+end
+
+CreateButton("🎭 แปลงร่าง (แสดง/ซ่อน)", function(btn)
+    TransformFrame.Visible = not TransformFrame.Visible
+end)
+
+-- โหลดค่าระบบ Humanoid ใหม่เมื่อตัวละครเกิดใหม่
+LocalPlayer.CharacterAdded:Connect(function(Char)
+    Char:WaitForChild("Humanoid")
+    Char.Humanoid.WalkSpeed = State.WalkSpeed
+    Char.Humanoid.JumpPower = State.JumpPower
+end)
